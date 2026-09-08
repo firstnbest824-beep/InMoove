@@ -152,6 +152,131 @@ pytest tests/test_face_expression.py
 pytest --cov=inmoove
 ```
 
+## 🎬 Face Retargeting (Rule-Based Approach)
+
+### 개요
+
+**Face Retargeting**은 인간의 얼굴 움직임 (MediaPipe blendshape)을 로봇의 표정 (FaceExpression)으로 변환하는 계층입니다.
+
+**중요**: 이 retargeting은 **baseline heuristic**이며, 실제 로봇 동작을 위한 근거 있는 최종 매개변수가 아닙니다. 향후 실제 데이터를 수집하고 분석하여 이 매핑을 개선할 수 있습니다.
+
+### 데이터 파이프라인
+
+```
+Human Face Motion (MediaPipe)
+         ↓
+    21 Blendshapes
+         ↓
+  RawFaceFrame
+         ↓
+RuleBasedFaceRetargeter
+         ↓
+   FaceExpression (16D)
+         ↓
+    MockHead/RealHead
+```
+
+### 핵심 설계 원칙
+
+1. **Expression과 Gaze 분리**
+   - Eye gaze (좌우, 상하): 항상 neutral (0.5) 유지
+   - Expression (눈썹, 뺨, 눈꺼풀 등): MediaPipe 기반 변환
+   - Future: Separate gaze controller layer
+
+2. **Neutral-Centered Mapping**
+   - 0.5 = 중립 상태
+   - 0.0 ~ 0.5: 감소 방향
+   - 0.5 ~ 1.0: 증가 방향
+
+3. **Multi-to-Single Mapping**
+   - 여러 MediaPipe blendshape → 하나의 robot actuator
+   - 예: eyebrow = 0.45×browInnerUp + 0.55×browOuterUp - 0.70×browDown
+
+4. **Strict Input Validation**
+   - face_detected=False 시 명시적 예외 발생
+   - Missing blendshape 시 선택적 처리 (strict mode)
+
+### 사용 예제
+
+```python
+from inmoove.data_pipeline import (
+    MockFaceDataExtractor,
+    RuleBasedFaceRetargeter,
+    get_default_config
+)
+
+# 1. Face data 추출 (Mock용)
+extractor = MockFaceDataExtractor(frame_count=100, fps=30)
+raw_frames = list(extractor.extract())
+
+# 2. Retargeter 생성
+retargeter = RuleBasedFaceRetargeter(strict=False)
+
+# 3. Human face → Robot face 변환
+for frame in raw_frames:
+    if frame.face_detected:
+        robot_expression = retargeter.retarget(frame)
+        head.set_expression(robot_expression)
+```
+
+### Retargeting Config
+
+모든 gain 값은 중앙화되어 관리됩니다:
+
+```python
+from inmoove.data_pipeline import get_default_config
+
+config = get_default_config()
+# config.brow_up_gain = 0.55
+# config.cheek_squint_gain = 0.60
+# config.jaw_open_gain = 0.80
+# ... (18개 파라미터)
+```
+
+### 매핑 예시
+
+**눈썹 (Eyebrow)**
+```
+eyebrow_left = 0.5 + 0.35 × (
+    0.45 × browInnerUp
+    + 0.55 × browOuterUpLeft
+    - 0.70 × browDownLeft
+)
+```
+
+**뺨 (Cheek)**
+```
+cheek_left = 0.5 + 0.40 × (
+    0.60 × cheekSquintLeft
+    + 0.40 × mouthSmileLeft
+)
+```
+
+**턱 (Jaw)**
+```
+jaw = 0.5 + 0.80 × jawOpen
+```
+
+### Baseline Heuristic 특성
+
+이 매핑이 "baseline"이라는 의미:
+
+1. **검증되지 않은 초기 추측**: 로봇 기술자와 협력하여 수작업으로 결정
+2. **개선 대상**: 실제 로봇 데이터를 수집한 후 조정 필요
+3. **아키텍처 검증용**: 파이프라인이 올바르게 작동하는지 확인하는 용도
+4. **Future 머신러닝 기반**: 데이터 충분 시 learned model로 대체 가능
+
+### 데모 실행
+
+전체 파이프라인을 테스트하려면:
+
+```bash
+# Face retargeting 데모 (20 frame, MockHead 적용)
+python examples/retargeting_demo.py
+```
+
+출력: 20개 프레임의 MediaPipe blendshape을 robot expression으로 변환하고, MockHead에 적용한 결과를 표시합니다.
+
 ## 📋 테스트 항목
 
 ✅ FaceExpression

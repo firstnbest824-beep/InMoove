@@ -31,6 +31,8 @@ from .mock_extractor import MockFaceDataExtractor
 from .mediapipe_extractor import MediaPipeFaceDataExtractor
 from .quality import FaceDataQualityValidator
 from .retargeting import FaceRetargeter, NotImplementedRetargeter
+from .retargeting_config import RetargetingConfig, get_default_config
+from .rule_based_retargeter import RuleBasedFaceRetargeter, FaceNotDetectedException, MissingBlendshapeException
 from .writer import DatasetWriter
 from .pipeline import FaceDataPipeline
 
@@ -39,12 +41,17 @@ __all__ = [
     "FaceDataExtractor",
     "FaceDataPipeline",
     "FaceDataQualityValidator",
+    "FaceNotDetectedException",
     "FaceRetargeter",
     "MediaPipeFaceDataExtractor",
+    "MissingBlendshapeException",
     "MockFaceDataExtractor",
     "NotImplementedRetargeter",
     "PipelineResult",
     "QualityReport",
     "RawFaceFrame",
+    "RetargetingConfig",
+    "RuleBasedFaceRetargeter",
     "DatasetWriter",
+    "get_default_config",
 ]

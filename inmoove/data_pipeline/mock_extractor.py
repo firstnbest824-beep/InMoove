@@ -85,6 +85,7 @@ class MockFaceDataExtractor(FaceDataExtractor):
         deterministic한 얼굴 움직임을 생성합니다.
 
         이 규칙은 사람의 자연스러운 표정 변화에 가까운 단순 신호를 만듭니다.
+        RuleBasedFaceRetargeter가 필요로 하는 모든 blendshape를 생성합니다.
         """
         if not face_detected:
             return {}
@@ -101,16 +102,56 @@ class MockFaceDataExtractor(FaceDataExtractor):
         left_brow = clamp(brow + 0.05 * math.cos(phase), 0.0, 1.0)
         right_brow = clamp(brow + 0.07 * math.sin(phase + 0.8), 0.0, 1.0)
 
+        # browInnerUp: brow 상승의 내부 요소
+        brow_inner = clamp(0.5 + 0.25 * math.sin(phase * 1.2), 0.0, 1.0)
+
+        # browDownLeft / browDownRight: brow 하강
+        brow_down_left = clamp(0.1 + 0.2 * math.sin(phase * 0.9), 0.0, 1.0)
+        brow_down_right = clamp(0.12 + 0.18 * math.sin(phase * 0.85), 0.0, 1.0)
+
+        # cheekSquint: 눈 주변 긴장 (웃을 때와 약간 위상차)
+        cheek_squint = clamp(0.15 + 0.35 * max(0.0, math.sin(phase + 0.5)), 0.0, 1.0)
+
+        # eyeSquint: blink와 이온 다른 시점에서 발생
+        eye_squint = clamp(0.1 + 0.25 * max(0.0, math.sin(phase * 2.5)), 0.0, 1.0)
+
+        # eyeWide: blink의 반대 방향
+        eye_wide = clamp(0.2 + 0.3 * max(0.0, math.cos(phase * 2.0)), 0.0, 1.0)
+
+        # mouthUpperUp: 입 위쪽 올려짐
+        mouth_upper_up = clamp(0.10 + 0.35 * max(0.0, math.sin(phase + 0.4)), 0.0, 1.0)
+
+        # mouthShrugUpper: 입 위쪽 치켜올려짐
+        mouth_shrug = clamp(0.08 + 0.25 * max(0.0, math.sin(phase * 0.7)), 0.0, 1.0)
+
+        # mouthRollUpper: 입 위쪽 감기
+        mouth_roll = clamp(0.05 + 0.15 * max(0.0, math.sin(phase * 1.5)), 0.0, 1.0)
+
         return {
-            "jaw_open": clamp(jaw, 0.0, 1.0),
-            "mouth_smile_left": clamp(left_smile, 0.0, 1.0),
-            "mouth_smile_right": clamp(right_smile, 0.0, 1.0),
-            "brow_outer_up_left": clamp(left_brow, 0.0, 1.0),
-            "brow_outer_up_right": clamp(right_brow, 0.0, 1.0),
-            "eye_blink_left": clamp(blink, 0.0, 1.0),
-            "eye_blink_right": clamp(0.9 * blink, 0.0, 1.0),
-            "mouth_frown_left": clamp(0.2 + 0.15 * math.sin(phase + 2.4), 0.0, 1.0),
-            "mouth_frown_right": clamp(0.18 + 0.14 * math.sin(phase + 2.0), 0.0, 1.0),
+            # 눈썹
+            "browInnerUp": brow_inner,
+            "browOuterUpLeft": left_brow,
+            "browOuterUpRight": right_brow,
+            "browDownLeft": brow_down_left,
+            "browDownRight": brow_down_right,
+            # 볼
+            "cheekSquintLeft": cheek_squint,
+            "cheekSquintRight": clamp(0.18 + 0.32 * max(0.0, math.sin(phase + 0.3)), 0.0, 1.0),
+            # 눈
+            "eyeBlinkLeft": clamp(blink, 0.0, 1.0),
+            "eyeBlinkRight": clamp(0.9 * blink, 0.0, 1.0),
+            "eyeSquintLeft": eye_squint,
+            "eyeSquintRight": clamp(0.12 + 0.28 * max(0.0, math.sin(phase * 2.3)), 0.0, 1.0),
+            "eyeWideLeft": eye_wide,
+            "eyeWideRight": clamp(0.22 + 0.28 * max(0.0, math.cos(phase * 2.1)), 0.0, 1.0),
+            # 입
+            "jawOpen": clamp(jaw, 0.0, 1.0),
+            "mouthSmileLeft": clamp(left_smile, 0.0, 1.0),
+            "mouthSmileRight": clamp(right_smile, 0.0, 1.0),
+            "mouthUpperUpLeft": mouth_upper_up,
+            "mouthUpperUpRight": clamp(0.12 + 0.33 * max(0.0, math.sin(phase + 0.35)), 0.0, 1.0),
+            "mouthShrugUpper": mouth_shrug,
+            "mouthRollUpper": mouth_roll,
         }
 
 
