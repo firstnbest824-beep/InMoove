@@ -1,0 +1,10 @@
+{
+  "source": "mock-demo-video",
+  "fps": 30.0,
+  "total_frames": 90,
+  "processed_frames": 90,
+  "detected_frames": 87,
+  "model": "MockFaceDataExtractor",
+  "landmarks_saved": false,
+  "created_at": "2026-09-08T03:06:24.528125+00:00"
+}
