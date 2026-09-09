@@ -219,7 +219,7 @@ class RuleBasedFaceRetargeter(FaceRetargeter):
         down_component = self.config.brow_down_gain * self._get_blendshape(bs, "browDownLeft")
 
         delta = up_component - down_component
-        result = self.config.neutral_value + 0.35 * delta
+        result = self.config.neutral_value + self.config.eyebrow_output_scale * delta
 
         return self._clamp01(result)
 
@@ -232,7 +232,7 @@ class RuleBasedFaceRetargeter(FaceRetargeter):
         down_component = self.config.brow_down_gain * self._get_blendshape(bs, "browDownRight")
 
         delta = up_component - down_component
-        result = self.config.neutral_value + 0.35 * delta
+        result = self.config.neutral_value + self.config.eyebrow_output_scale * delta
 
         return self._clamp01(result)
 
@@ -248,7 +248,7 @@ class RuleBasedFaceRetargeter(FaceRetargeter):
             + self.config.forehead_outer_up_gain * self._get_blendshape(bs, "browOuterUpLeft")
         )
 
-        result = self.config.neutral_value + 0.40 * delta
+        result = self.config.neutral_value + self.config.forehead_output_scale * delta
 
         return self._clamp01(result)
 
@@ -259,7 +259,7 @@ class RuleBasedFaceRetargeter(FaceRetargeter):
             + self.config.forehead_outer_up_gain * self._get_blendshape(bs, "browOuterUpRight")
         )
 
-        result = self.config.neutral_value + 0.40 * delta
+        result = self.config.neutral_value + self.config.forehead_output_scale * delta
 
         return self._clamp01(result)
 
@@ -276,7 +276,7 @@ class RuleBasedFaceRetargeter(FaceRetargeter):
             + self.config.smile_to_cheek_gain * self._get_blendshape(bs, "mouthSmileLeft")
         )
 
-        result = self.config.neutral_value + 0.40 * delta
+        result = self.config.neutral_value + self.config.cheek_output_scale * delta
 
         return self._clamp01(result)
 
@@ -287,7 +287,7 @@ class RuleBasedFaceRetargeter(FaceRetargeter):
             + self.config.smile_to_cheek_gain * self._get_blendshape(bs, "mouthSmileRight")
         )
 
-        result = self.config.neutral_value + 0.40 * delta
+        result = self.config.neutral_value + self.config.cheek_output_scale * delta
 
         return self._clamp01(result)
 
@@ -304,7 +304,7 @@ class RuleBasedFaceRetargeter(FaceRetargeter):
         wide_effect = self.config.wide_upper_gain * self._get_blendshape(bs, "eyeWideLeft")
 
         delta = blink_effect + wide_effect
-        result = self.config.neutral_value + 0.35 * delta
+        result = self.config.neutral_value + self.config.eyelid_output_scale * delta
 
         return self._clamp01(result)
 
@@ -314,7 +314,7 @@ class RuleBasedFaceRetargeter(FaceRetargeter):
         wide_effect = self.config.wide_upper_gain * self._get_blendshape(bs, "eyeWideRight")
 
         delta = blink_effect + wide_effect
-        result = self.config.neutral_value + 0.35 * delta
+        result = self.config.neutral_value + self.config.eyelid_output_scale * delta
 
         return self._clamp01(result)
 
@@ -330,7 +330,7 @@ class RuleBasedFaceRetargeter(FaceRetargeter):
         blink_effect = self.config.blink_lower_gain * self._get_blendshape(bs, "eyeBlinkLeft")
 
         delta = squint_effect + blink_effect
-        result = self.config.neutral_value + 0.35 * delta
+        result = self.config.neutral_value + self.config.eyelid_output_scale * delta
 
         return self._clamp01(result)
 
@@ -340,7 +340,7 @@ class RuleBasedFaceRetargeter(FaceRetargeter):
         blink_effect = self.config.blink_lower_gain * self._get_blendshape(bs, "eyeBlinkRight")
 
         delta = squint_effect + blink_effect
-        result = self.config.neutral_value + 0.35 * delta
+        result = self.config.neutral_value + self.config.eyelid_output_scale * delta
 
         return self._clamp01(result)
 
@@ -364,7 +364,7 @@ class RuleBasedFaceRetargeter(FaceRetargeter):
             - self.config.mouth_roll_upper_gain * self._get_blendshape(bs, "mouthRollUpper")
         )
 
-        result = self.config.neutral_value + 0.40 * delta
+        result = self.config.neutral_value + self.config.upper_lip_output_scale * delta
 
         return self._clamp01(result)
 
@@ -376,9 +376,9 @@ class RuleBasedFaceRetargeter(FaceRetargeter):
         jawOpen 값이 증가하면 턱이 벌려집니다.
         """
         jaw_open = self._get_blendshape(bs, "jawOpen")
-        delta = jaw_open
+        delta = self.config.jaw_open_gain * jaw_open
 
-        result = self.config.neutral_value + 0.35 * delta
+        result = self.config.neutral_value + self.config.jaw_output_scale * delta
 
         return self._clamp01(result)
 

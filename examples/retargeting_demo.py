@@ -3,7 +3,7 @@
 Face Retargeting 데모
 
 이 데모는 다음과 같은 전체 파이프라인을 보여줍니다:
-1. MockFaceDataExtractor로 mock human face motion 생성 (21개 blendshape)
+1. MockFaceDataExtractor로 mock human face motion 생성 (20개 blendshape)
 2. RuleBasedFaceRetargeter로 robot face expression으로 변환
 3. MockHead로 표현을 적용
 
@@ -161,12 +161,12 @@ def main():
     print_header("파이프라인 요약")
     print(f"""
 변환 결과:
-  - 입력: {len(raw_frames)} frame × 21 blendshape (human face)
+  - 입력: {len(raw_frames)} frame × 20 blendshape (human face)
   - 출력: {len(robot_expressions)} frame × 16 dimension (robot face)
   - 적용: {applied_count} frame을 MockHead에 적용
 
 주요 학습 포인트:
-  1. Human face (21 blendshape) → Robot face (16 dimension) 변환 성공
+  1. Human face (20 blendshape) → Robot face (16 dimension) 변환 성공
   2. Gaze 분리: eye_*_lr/ud는 항상 0.5 (neutral) 유지
   3. Expression 매핑:
      - 눈썹: browInnerUp, browOuterUp*, browDown* 조합

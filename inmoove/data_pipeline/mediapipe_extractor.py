@@ -13,10 +13,78 @@ blendshape 시퀀스를 생성하는 역할을 합니다.
 from __future__ import annotations
 
 import os
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from .extractor import FaceDataExtractor
 from .models import RawFaceFrame
+
+
+def canonicalize_media_pipe_name(category_name: Any) -> str:
+    """MediaPipe 공식 category name을 그대로 유지합니다.
+
+    핵심 원칙:
+    - lower() 나 snake_case 변환을 하지 않는다.
+    - RawFaceFrame과 RuleBasedFaceRetargeter가 같은 canonical key를 사용하도록 맞춘다.
+    """
+    if category_name is None:
+        raise ValueError("category_name은 None일 수 없습니다")
+    name = str(category_name).strip()
+    if not name:
+        raise ValueError("category_name이 비어 있습니다")
+    return name
+
+
+def parse_media_pipe_blendshapes(face_blendshapes: Any) -> Dict[str, float]:
+    """MediaPipe blendshape 목록을 canonical key dict로 변환합니다."""
+    if face_blendshapes is None:
+        return {}
+
+    if not isinstance(face_blendshapes, (list, tuple)):
+        items = [face_blendshapes]
+    else:
+        items = list(face_blendshapes)
+
+    parsed: Dict[str, float] = {}
+    for item in items:
+        if isinstance(item, dict):
+            category_name = item.get("category_name")
+            score = item.get("score")
+        else:
+            category_name = getattr(item, "category_name", None)
+            score = getattr(item, "score", None)
+
+        if category_name is None or score is None:
+            continue
+
+        name = canonicalize_media_pipe_name(category_name)
+        numeric_score = float(score)
+        parsed[name] = max(0.0, min(1.0, numeric_score))
+
+    return parsed
+
+
+def serialize_face_landmarks(face_landmarks: Any) -> Any:
+    """MediaPipe landmark 객체를 JSON 직렬화 가능한 primitive로 변환합니다."""
+    if face_landmarks is None:
+        return None
+
+    if isinstance(face_landmarks, dict):
+        return {
+            key: serialize_face_landmarks(value)
+            for key, value in face_landmarks.items()
+        }
+
+    if isinstance(face_landmarks, (list, tuple)):
+        return [serialize_face_landmarks(item) for item in face_landmarks]
+
+    if hasattr(face_landmarks, "x") or hasattr(face_landmarks, "y") or hasattr(face_landmarks, "z"):
+        payload = {}
+        for axis in ("x", "y", "z"):
+            if hasattr(face_landmarks, axis):
+                payload[axis] = float(getattr(face_landmarks, axis))
+        return payload
+
+    return face_landmarks
 
 
 class MediaPipeFaceDataExtractor(FaceDataExtractor):
@@ -107,29 +175,12 @@ class MediaPipeFaceDataExtractor(FaceDataExtractor):
                 image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
                 detection = landmarker.detect_for_video(image, timestamp_ms)
 
-                blendshapes: dict[str, float] = {}
-                if detection.face_blendshapes:
-                    # MediaPipe 결과는 보통 한 사람당 여러 blendshape 카테고리 리스트를 담고 있습니다.
-                    # 구조가 약간 다를 수 있으므로 안전하게 파싱합니다.
-                    for face_blendshapes in detection.face_blendshapes:
-                        if not isinstance(face_blendshapes, (list, tuple)):
-                            entries = [face_blendshapes]
-                        else:
-                            entries = face_blendshapes
-                        for item in entries:
-                            category_name = getattr(item, "category_name", None)
-                            score = getattr(item, "score", None)
-                            if category_name is None or score is None:
-                                continue
-                            normalized_name = str(category_name).lower().replace(" ", "_")
-                            numeric_score = float(score)
-                            blendshapes[normalized_name] = max(0.0, min(1.0, numeric_score))
-
+                blendshapes: dict[str, float] = parse_media_pipe_blendshapes(detection.face_blendshapes)
                 face_detected = bool(detection.face_blendshapes)
                 landmarks = None
                 if self.include_landmarks and detection.face_landmarks:
                     landmarks = {
-                        "face_landmarks": detection.face_landmarks,
+                        "face_landmarks": serialize_face_landmarks(detection.face_landmarks),
                     }
 
                 frames.append(

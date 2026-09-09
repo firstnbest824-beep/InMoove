@@ -165,7 +165,7 @@ pytest --cov=inmoove
 ```
 Human Face Motion (MediaPipe)
          ↓
-    21 Blendshapes
+    20 Blendshapes
          ↓
   RawFaceFrame
          ↓

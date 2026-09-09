@@ -21,6 +21,7 @@ class RetargetingConfig:
     각 값은 다음처럼 해석됩니다.
     - neutral_value: 중립 얼굴 상태 (일반적으로 0.5)
     - 각 gain: MediaPipe blendshape의 영향도 (0.0 ~ 1.0)
+    - 각 output_scale: 최종 output 값의 결과 스케일 (0.0 ~ 1.0)
 
     원칙:
     - 값을 직접 코드에 흩뿌리지 않음
@@ -37,34 +38,39 @@ class RetargetingConfig:
     brow_up_gain: float = 0.55  # browOuterUp의 영향도
     brow_inner_up_gain: float = 0.45  # browInnerUp의 영향도
     brow_down_gain: float = 0.70  # browDown의 영향도 (감소)
+    eyebrow_output_scale: float = 0.35
 
     # === 이마 (forehead) ===
     # 눈썹보다는 약하게, 주로 browInnerUp의 영향을 받음
     forehead_inner_up_gain: float = 0.35
     forehead_outer_up_gain: float = 0.25
+    forehead_output_scale: float = 0.40
 
     # === 볼 (cheek) ===
     # cheekSquint와 mouthSmile의 조합
     cheek_squint_gain: float = 0.60
     smile_to_cheek_gain: float = 0.40
+    cheek_output_scale: float = 0.40
 
     # === 눈꺼풀 (eyelid) ===
     # Upper: blink와 wide가 반대 방향으로 작용
     # Lower: squint와 일부 blink
     blink_upper_gain: float = 0.70  # blink가 증가하면 눈꺼풀 닫힘
     wide_upper_gain: float = 0.80  # wide가 증가하면 눈꺼풀 열림
-
     blink_lower_gain: float = 0.50
     squint_lower_gain: float = 0.65
+    eyelid_output_scale: float = 0.35
 
     # === 윗입술 (upper_lip) ===
     upper_up_gain: float = 0.50  # mouthUpperUp의 영향도
     mouth_shrug_upper_gain: float = 0.35  # mouthShrugUpper의 영향도
     mouth_roll_upper_gain: float = 0.25  # mouthRollUpper의 영향도 (감소)
+    upper_lip_output_scale: float = 0.40
 
     # === 턱 (jaw) ===
     # 가장 단순한 매핑: jawOpen이 증가하면 jaw가 증가
     jaw_open_gain: float = 0.80
+    jaw_output_scale: float = 0.35
 
     # === 눈 방향 (gaze) ===
     # 주의: 현재 이 시스템은 gaze를 expression과 분리합니다.

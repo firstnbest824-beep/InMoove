@@ -11,6 +11,9 @@ RuleBasedFaceRetargeter 테스트
 7. face_detected=False 처리
 """
 
+import json
+from types import SimpleNamespace
+
 import pytest
 
 from inmoove.data_pipeline import (
@@ -19,6 +22,10 @@ from inmoove.data_pipeline import (
     RawFaceFrame,
     RuleBasedFaceRetargeter,
     RetargetingConfig,
+)
+from inmoove.data_pipeline.mediapipe_extractor import (
+    parse_media_pipe_blendshapes,
+    serialize_face_landmarks,
 )
 
 
@@ -278,15 +285,17 @@ class TestStrictMode:
             retargeter.retarget(frame)
 
     def test_non_strict_mode_handles_missing_blendshape(self, neutral_frame: RawFaceFrame):
-        """strict=False이면 누락된 blendshape을 0.0으로 처리합니다."""
-        retargeter = RuleBasedFaceRetargeter(strict=False)
+        """strict=False이면 누락된 blendshape을 0.0으로 처리하여 neutral output을 유지해야 합니다."""
+        config = RetargetingConfig()
+        retargeter = RuleBasedFaceRetargeter(config=config, strict=False)
         incomplete_blendshapes = neutral_frame.blendshapes.copy()
         del incomplete_blendshapes["jawOpen"]  # 필수 키 제거
 
         frame = RawFaceFrame(frame_index=0, timestamp_ms=0, face_detected=True, blendshapes=incomplete_blendshapes)
 
         expr = retargeter.retarget(frame)
-        assert isinstance(expr, expr.__class__)  # 정상 반환
+        assert expr.jaw == pytest.approx(config.neutral_value)
+        assert 0.0 <= expr.jaw <= 1.0
 
 
 class TestFaceNotDetected:
@@ -303,3 +312,57 @@ class TestFaceNotDetected:
 
         with pytest.raises(FaceNotDetectedException):
             retargeter.retarget(frame)
+
+
+class TestMediaPipeCompatibility:
+    """MediaPipe naming contract 관련 regression test"""
+
+    def test_media_pipe_category_names_are_preserved(self):
+        """MediaPipe 공식 category name은 lower()/snake_case 변환 없이 그대로 유지되어야 합니다."""
+        fake_entries = [
+            SimpleNamespace(category_name="browInnerUp", score=0.80),
+            SimpleNamespace(category_name="jawOpen", score=0.75),
+            SimpleNamespace(category_name="mouthSmileLeft", score=0.60),
+        ]
+
+        parsed = parse_media_pipe_blendshapes(fake_entries)
+
+        assert "browInnerUp" in parsed
+        assert "jawOpen" in parsed
+        assert "mouthSmileLeft" in parsed
+        assert "browinnerup" not in parsed
+        assert "jawopen" not in parsed
+
+    def test_landmarks_are_json_serializable(self):
+        """landmark 객체는 RawFaceFrame.to_dict()와 json.dumps()가 정상 동작하도록 primitive로 변환되어야 합니다."""
+        fake_landmarks = [
+            SimpleNamespace(x=0.10, y=0.20, z=0.30),
+            SimpleNamespace(x=0.40, y=0.50, z=0.60),
+        ]
+        payload = {"face_landmarks": serialize_face_landmarks(fake_landmarks)}
+
+        dumped = json.dumps(payload)
+        assert "x" in dumped
+        assert "y" in dumped
+        assert "z" in dumped
+
+
+class TestJawGain:
+    """jaw_open_gain 적용 관련 regression test"""
+
+    def test_higher_jaw_gain_increases_output(self, neutral_frame: RawFaceFrame):
+        """jaw_open_gain이 크면 동일한 jawOpen input에서 더 큰 jaw output을 생성해야 합니다."""
+        low_gain = RetargetingConfig(jaw_open_gain=0.2)
+        high_gain = RetargetingConfig(jaw_open_gain=1.0)
+
+        low_retargeter = RuleBasedFaceRetargeter(config=low_gain, strict=True)
+        high_retargeter = RuleBasedFaceRetargeter(config=high_gain, strict=True)
+
+        blendshapes = neutral_frame.blendshapes.copy()
+        blendshapes["jawOpen"] = 1.0
+        frame = RawFaceFrame(frame_index=1, timestamp_ms=33, face_detected=True, blendshapes=blendshapes)
+
+        low_expr = low_retargeter.retarget(frame)
+        high_expr = high_retargeter.retarget(frame)
+
+        assert high_expr.jaw > low_expr.jaw
