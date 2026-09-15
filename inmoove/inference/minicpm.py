@@ -1,6 +1,7 @@
-"""Lazy adapter for text-only conversations with MiniCPM-V."""
+"""Lazy adapter for text and image conversations with MiniCPM-V."""
 
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 
@@ -43,6 +44,23 @@ def _content_text(content: Any) -> str:
     return ""
 
 
+def _open_local_image(image_path: str | Path) -> object:
+    path = Path(image_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"image file does not exist: {path}")
+
+    try:
+        from PIL import Image
+    except ImportError as exc:
+        raise RuntimeError("Pillow is required for local image inference") from exc
+
+    try:
+        with Image.open(path) as source:
+            return source.convert("RGB")
+    except OSError as exc:
+        raise ValueError(f"could not open image file: {path}") from exc
+
+
 class MiniCPMTextChat:
     def __init__(
         self,
@@ -74,6 +92,27 @@ class MiniCPMTextChat:
             raise ValueError("message must not be blank")
 
         messages = [{"role": "user", "content": [{"type": "text", "text": message}]}]
+        result = self._load_pipeline()(text=messages, max_new_tokens=128, do_sample=False)
+        content = _assistant_content(result)
+        if not content:
+            raise RuntimeError("MiniCPM pipeline returned no final assistant content")
+        return content
+
+    def reply_with_image(self, image_path: str | Path, message: str) -> str:
+        """Answer a question about one local image file."""
+        if not message or not message.strip():
+            raise ValueError("message must not be blank")
+
+        image = _open_local_image(image_path)
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image", "image": image},
+                    {"type": "text", "text": message},
+                ],
+            }
+        ]
         result = self._load_pipeline()(text=messages, max_new_tokens=128, do_sample=False)
         content = _assistant_content(result)
         if not content:

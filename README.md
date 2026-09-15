@@ -117,9 +117,9 @@ cd Inmoove
 pip install -r requirements.txt
 ```
 
-### 선택 사항: MiniCPM 키보드 채팅
+### 선택 사항: MiniCPM 키보드 채팅 및 이미지 질의
 
-MiniCPM 텍스트 채팅 예제에 필요한 선택 의존성과 호환성 의존성을 설치합니다.
+MiniCPM 예제에 필요한 선택 의존성을 설치합니다.
 
 ```bash
 python3 -m pip install -r requirements-minicpm.txt
@@ -127,6 +127,16 @@ python3 examples/minicpm_text_chat.py
 ```
 
 첫 실행에서는 약 2.6GB 모델을 다운로드합니다. 대화를 끝내려면 `/quit`을 입력하세요.
+
+저장된 사진 한 장과 질문으로 Step 2를 실행하려면 다음처럼 입력합니다. `--image`에는 로컬 이미지 파일 경로를, `--message`에는 사진을 보고 답할 문장을 전달합니다.
+
+```bash
+python3 examples/minicpm_image_chat.py \
+  --image assets/step2_photo.jpg \
+  --message "사진 속 인물의 표정과 행동, 주변 환경을 한국어 한 문장으로 설명해줘."
+```
+
+RTX 5080 개발 환경에서는 Step 1에서 검증한 PyTorch CUDA 조합과 호환되는 `torchvision`을 유지한 가상환경으로 위 명령을 실행하세요.
 
 ### 간단한 예제 실행
 
