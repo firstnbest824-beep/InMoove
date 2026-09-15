@@ -1,3 +1,7 @@
+from pathlib import Path
+import subprocess
+import sys
+
 import pytest
 
 from examples.minicpm_text_chat import run_cli
@@ -80,3 +84,18 @@ def test_run_cli_prints_reply_for_greeting_and_stops_on_quit():
     run_cli(GreetingChat(), input_fn=lambda _: next(messages), output_fn=outputs.append)
 
     assert outputs == ["AI: 안녕하세요!"]
+
+
+def test_direct_script_exits_on_quit_without_loading_model():
+    repository_root = Path(__file__).resolve().parents[1]
+
+    result = subprocess.run(
+        [sys.executable, "examples/minicpm_text_chat.py"],
+        cwd=repository_root,
+        input="/quit\n",
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
