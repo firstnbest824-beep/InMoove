@@ -73,6 +73,65 @@ def test_reply_rejects_missing_content_on_final_assistant_message():
         chat.reply("Hello")
 
 
+def test_reply_json_returns_parsed_structured_response():
+    calls = []
+
+    def pipeline(**kwargs):
+        calls.append(kwargs)
+        return [
+            {
+                "generated_text": [
+                    {
+                        "role": "assistant",
+                        "content": (
+                            '{"response":"정말 잘됐네요!",'
+                            '"expression":"happy","intensity":2}'
+                        ),
+                    }
+                ]
+            }
+        ]
+
+    chat = MiniCPMTextChat(pipeline_factory=lambda *_, **__: pipeline)
+
+    assert chat.reply_json("좋은 소식이 있어.") == {
+        "response": "정말 잘됐네요!",
+        "expression": "happy",
+        "intensity": 2,
+    }
+    prompt = calls[0]["text"][0]["content"][0]["text"]
+    assert "valid JSON object" in prompt
+    assert "좋은 소식이 있어." in prompt
+
+
+@pytest.mark.parametrize(
+    "model_output, error",
+    [
+        ("not json", "valid JSON object"),
+        ("[]", "JSON object"),
+        ('{"response":"안녕"}', "missing required fields"),
+        (
+            '{"response":"안녕","expression":"happy","intensity":"2"}',
+            "intensity must be a JSON number",
+        ),
+    ],
+)
+def test_reply_json_rejects_invalid_structured_output(model_output, error):
+    def pipeline(**_):
+        return [
+            {
+                "generated_text": [
+                    {"role": "assistant", "content": model_output},
+                ]
+            }
+        ]
+
+    chat = MiniCPMTextChat(pipeline_factory=lambda *_, **__: pipeline)
+
+    with pytest.raises(ValueError, match=error):
+        chat.reply_json("응답 형식을 지켜줘.")
+
+
 def test_reply_with_image_returns_answer_for_local_photo(tmp_path):
     image_path = tmp_path / "desk.jpg"
     Image.new("RGB", (2, 2), color=(10, 20, 30)).save(image_path)
@@ -104,6 +163,40 @@ def test_reply_with_image_returns_answer_for_local_photo(tmp_path):
         "type": "text",
         "text": "Describe the photo in one sentence.",
     }
+
+
+def test_reply_with_image_json_returns_parsed_structured_response(tmp_path):
+    image_path = tmp_path / "desk.jpg"
+    Image.new("RGB", (2, 2), color=(10, 20, 30)).save(image_path)
+    calls = []
+
+    def pipeline(**kwargs):
+        calls.append(kwargs)
+        return [
+            {
+                "generated_text": [
+                    {
+                        "role": "assistant",
+                        "content": (
+                            '{"response":"밝은 분위기입니다.",'
+                            '"expression":"happy","intensity":2}'
+                        ),
+                    }
+                ]
+            }
+        ]
+
+    chat = MiniCPMTextChat(pipeline_factory=lambda *_, **__: pipeline)
+
+    assert chat.reply_with_image_json(image_path, "사진 분위기를 설명해줘.") == {
+        "response": "밝은 분위기입니다.",
+        "expression": "happy",
+        "intensity": 2,
+    }
+    content = calls[0]["text"][0]["content"]
+    assert content[0]["type"] == "image"
+    assert "valid JSON object" in content[1]["text"]
+    assert "사진 분위기를 설명해줘." in content[1]["text"]
 
 
 def test_reply_with_image_rejects_missing_file_before_loading_pipeline(tmp_path):
