@@ -117,6 +117,17 @@ cd Inmoove
 pip install -r requirements.txt
 ```
 
+### 선택 사항: MiniCPM 키보드 채팅
+
+MiniCPM 텍스트 채팅 예제에 필요한 선택 의존성을 설치합니다.
+
+```bash
+pip install -r requirements-minicpm.txt
+python3 examples/minicpm_text_chat.py
+```
+
+첫 실행에서는 약 2.6GB 모델을 다운로드합니다. 대화를 끝내려면 `/quit`을 입력하세요.
+
 ### 간단한 예제 실행
 
 ```bash

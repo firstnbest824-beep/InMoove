@@ -1,5 +1,6 @@
 import pytest
 
+from examples.minicpm_text_chat import run_cli
 from inmoove.inference.minicpm import MiniCPMTextChat
 
 
@@ -65,3 +66,17 @@ def test_reply_rejects_missing_content_on_final_assistant_message():
 
     with pytest.raises(RuntimeError, match="no final assistant content"):
         chat.reply("Hello")
+
+
+def test_run_cli_prints_reply_for_greeting_and_stops_on_quit():
+    class GreetingChat:
+        def reply(self, message: str) -> str:
+            assert message == "안녕"
+            return "안녕하세요!"
+
+    messages = iter(["안녕", "/quit"])
+    outputs: list[str] = []
+
+    run_cli(GreetingChat(), input_fn=lambda _: next(messages), output_fn=outputs.append)
+
+    assert outputs == ["AI: 안녕하세요!"]
