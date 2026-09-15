@@ -217,6 +217,14 @@ RuleBasedFaceRetargeter
    - face_detected=False 시 명시적 예외 발생
    - Missing blendshape 시 선택적 처리 (strict mode)
 
+### LLM 표정 매핑 baseline (임시)
+
+`map_expression(expression, intensity)`는 Step 3의 `expression`·`intensity`를 기존 `FaceExpression` 순서의 16D 정규화 벡터로 변환합니다. 현재는 하드웨어 calibration 전 software baseline입니다.
+
+- `neutral`은 intensity 1~3에서 모두 16개 값 `0.5`를 반환합니다.
+- `happy`와 `sad`는 `examples/simple_demo.py`의 기존 벡터를 intensity 3으로 사용하고, intensity 1·2는 neutral에서 각 벡터까지 선형 보간합니다.
+- 이 값은 서보 각도나 PCA9685 값을 뜻하지 않습니다. 실제 i2Head calibration과 `RealHead`/`ServoCalibration` 계층이 준비되면 교체해야 합니다.
+
 ### 사용 예제
 
 ```python

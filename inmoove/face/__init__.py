@@ -8,11 +8,13 @@
 """
 
 from .expression import FaceExpression
+from .expression_mapping import map_expression
 from .interface import HeadInterface
 from .mock_head import MockHead
 
 __all__ = [
     "FaceExpression",
+    "map_expression",
     "HeadInterface", 
     "MockHead",
 ]
