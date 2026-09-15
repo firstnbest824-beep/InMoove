@@ -48,3 +48,20 @@ def test_blank_message_is_rejected_before_loading_pipeline():
         chat.reply("  \n\t")
 
     assert loaded is False
+
+
+def test_reply_rejects_missing_content_on_final_assistant_message():
+    def pipeline(**_):
+        return [
+            {
+                "generated_text": [
+                    {"role": "assistant", "content": "Earlier response"},
+                    {"role": "assistant", "content": ""},
+                ]
+            }
+        ]
+
+    chat = MiniCPMTextChat(pipeline_factory=lambda *_, **__: pipeline)
+
+    with pytest.raises(RuntimeError, match="no final assistant content"):
+        chat.reply("Hello")

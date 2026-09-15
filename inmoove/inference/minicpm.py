@@ -18,11 +18,13 @@ def _import_pipeline() -> Callable[..., Callable[..., object]]:
 def _assistant_content(result: object) -> str:
     """Return the last assistant message's content in a pipeline result."""
     if isinstance(result, list):
-        for item in reversed(result):
-            content = _assistant_content(item)
-            if content:
-                return content
-        return ""
+        assistant_messages = [
+            item for item in result
+            if isinstance(item, dict) and item.get("role") == "assistant"
+        ]
+        if assistant_messages:
+            return _content_text(assistant_messages[-1].get("content"))
+        return _assistant_content(result[-1]) if result else ""
     if isinstance(result, dict):
         generated = result.get("generated_text")
         if generated is not None:
@@ -53,7 +55,11 @@ class MiniCPMTextChat:
 
     def _load_pipeline(self) -> Callable[..., object]:
         if self._pipeline is None:
-            factory = self._pipeline_factory or _import_pipeline()
+            factory = (
+                self._pipeline_factory
+                if self._pipeline_factory is not None
+                else _import_pipeline()
+            )
             try:
                 self._pipeline = factory("image-text-to-text", model=self._model_id)
             except ImportError as exc:
