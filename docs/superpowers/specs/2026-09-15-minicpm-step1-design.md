@@ -9,7 +9,7 @@ Run a pre-trained MiniCPM model locally and provide a keyboard-only text chat th
 - Use `openbmb/MiniCPM-V-4.6`, the official 1B MiniCPM-V checkpoint.
 - Load the model lazily through the Hugging Face Transformers `image-text-to-text` pipeline.
 - Provide a CLI that reads one text prompt at a time and prints the assistant response.
-- Keep model loading, camera input, STT, JSON output, and robot control outside this step.
+- Keep camera input, STT, JSON output, and robot control outside this step.
 
 ## Constraints
 

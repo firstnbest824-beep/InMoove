@@ -122,7 +122,7 @@ pip install -r requirements.txt
 MiniCPM 텍스트 채팅 예제에 필요한 선택 의존성과 호환성 의존성을 설치합니다.
 
 ```bash
-pip install -r requirements-minicpm.txt
+python3 -m pip install -r requirements-minicpm.txt
 python3 examples/minicpm_text_chat.py
 ```
 
