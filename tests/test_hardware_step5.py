@@ -1,10 +1,19 @@
 """Step 5의 named calibration, 16-channel mapping, serial transport tests."""
 
 import importlib
+from pathlib import Path
 
 import pytest
 
 from inmoove.face import FaceExpression
+
+
+RECEIVER_SKETCH = (
+    Path(__file__).resolve().parents[1]
+    / "arduino"
+    / "face_servo_receiver"
+    / "face_servo_receiver.ino"
+)
 
 
 def hardware_modules():
@@ -13,6 +22,30 @@ def hardware_modules():
     real_head = importlib.import_module("inmoove.hardware.real_head")
     transport = importlib.import_module("inmoove.hardware.serial_transport")
     return calibration, real_head, transport
+
+
+def test_receiver_declares_a_guarded_ch15_jaw_manual_calibration_mode():
+    """CH15/jaw starts released and requires an explicit serial enable command."""
+    source = RECEIVER_SKETCH.read_text()
+
+    assert "bool ch15TestEnabled = false;" in source
+    assert 'const char *const CH15_ACTUATOR_NAME = "jaw";' in source
+    assert "const uint8_t CH15_TEST_CHANNEL = 15;" in source
+    assert "const uint16_t CH15_TEST_MIN_PULSE = 290;" in source
+    assert "const uint16_t CH15_TEST_MAX_PULSE = 320;" in source
+    assert "releaseCh15Output();  // Ensure CH15 is released at boot" in source
+
+
+def test_receiver_has_ch15_only_manual_commands_and_release_path():
+    """The jaw test has no automatic motion and releases only CH15 on stop."""
+    source = RECEIVER_SKETCH.read_text()
+
+    assert 'strcmp(packet, "CH15_TEST_ENABLE")' in source
+    assert 'strcmp(packet, "CH15_TEST_STOP")' in source
+    assert 'strcmp(command, "CH15_SET")' in source
+    assert "ERR send CH15_TEST_ENABLE before CH15_SET" in source
+    assert "pwm.setPWM(CH15_TEST_CHANNEL, 0, 0);" in source
+    assert "pwm.setPWM(CH15_TEST_CHANNEL, 0, static_cast<uint16_t>(pulse));" in source
 
 
 @pytest.mark.parametrize(

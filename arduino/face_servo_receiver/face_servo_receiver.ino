@@ -4,18 +4,22 @@
  * Accepted wire format at 115200 baud:
  *   ANGLES,<CH0 degrees>,<CH1 degrees>,...,<CH15 degrees>\n
  *
- * The default build intentionally does NOT initialize or command a PCA9685.
- * A manually enabled CH0-only calibration mode is available below, but it is
- * compiled out until ENABLE_CH0_SERVO_TEST is changed to 1 and re-uploaded.
- * ``ANGLES`` packets always only validate and store values; they never drive
- * physical outputs in this Step 5 sketch.
+ * ``ANGLES`` packets always only validate and store values; they never
+ * initialize or drive physical PCA9685 outputs in this Step 5 sketch.
+ * A manually enabled CH0-only calibration mode is available below. The
+ * separate CH15/jaw calibration mode operates only in a build where
+ * ENABLE_CH15_SERVO_TEST is set to 1 and has been re-uploaded.
  */
 
 #ifndef ENABLE_CH0_SERVO_TEST
 #define ENABLE_CH0_SERVO_TEST 1
 #endif
 
-#if ENABLE_CH0_SERVO_TEST
+#ifndef ENABLE_CH15_SERVO_TEST
+#define ENABLE_CH15_SERVO_TEST 1
+#endif
+
+#if ENABLE_CH0_SERVO_TEST || ENABLE_CH15_SERVO_TEST
 #include <Wire.h>
 #include <Adafruit_PWMServoDriver.h>
 #endif
@@ -28,6 +32,10 @@ const unsigned long BAUD_RATE = 115200;
 const size_t SERVO_COUNT = 16;
 const size_t MAX_PACKET_LENGTH = 256;
 
+#if ENABLE_CH0_SERVO_TEST || ENABLE_CH15_SERVO_TEST
+Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
+#endif
+
 #if ENABLE_CH0_SERVO_TEST
 // This narrow initial range is for manual, one-step-at-a-time observation.
 // It is not a measured calibration and must not be widened without checking
@@ -36,8 +44,20 @@ const uint8_t CH0_TEST_CHANNEL = 0;
 const uint16_t CH0_TEST_MIN_PULSE = 295;
 const uint16_t CH0_TEST_MAX_PULSE = 320;
 
-Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 bool ch0TestEnabled = false;
+#endif
+
+#if ENABLE_CH15_SERVO_TEST
+// CH15 is the named jaw actuator in ACTUATOR_NAMES below. These are only an
+// temporary direction-observation window, not a safe_max calibration. Record
+// neutral/open/close/safe limits and reversal before copying values into the
+// Python ServoCalibration for "jaw".
+const uint8_t CH15_TEST_CHANNEL = 15;
+const char *const CH15_ACTUATOR_NAME = "jaw";
+const uint16_t CH15_TEST_MIN_PULSE = 290;
+const uint16_t CH15_TEST_MAX_PULSE = 320;
+
+bool ch15TestEnabled = false;
 #endif
 
 // Python's fixed packet position -> PCA9685 channel mapping.
@@ -144,9 +164,73 @@ bool handleCh0TestCommand(char *packet) {
 }
 #endif
 
+#if ENABLE_CH15_SERVO_TEST
+void releaseCh15Output() {
+  // A zero-width pulse releases CH15; no other PCA9685 channel is touched.
+  pwm.setPWM(CH15_TEST_CHANNEL, 0, 0);
+}
+
+bool handleCh15TestCommand(char *packet) {
+  if (strcmp(packet, "CH15_TEST_ENABLE") == 0) {
+    ch15TestEnabled = true;
+    Serial.println("OK CH15 jaw test enabled; send CH15_SET,<290..320>");
+    return true;
+  }
+
+  if (strcmp(packet, "CH15_TEST_STOP") == 0) {
+    releaseCh15Output();
+    ch15TestEnabled = false;
+    Serial.println("OK CH15 jaw output released; test disabled");
+    return true;
+  }
+
+  if (strncmp(packet, "CH15_", 5) != 0) {
+    return false;
+  }
+
+  char *savePointer = NULL;
+  char *command = strtok_r(packet, ",", &savePointer);
+  if (command == NULL || strcmp(command, "CH15_SET") != 0) {
+    Serial.println("ERR malformed CH15 test command");
+    return true;
+  }
+
+  char *pulseText = strtok_r(NULL, ",", &savePointer);
+  if (pulseText == NULL || strtok_r(NULL, ",", &savePointer) != NULL ||
+      pulseText[0] == '-') {
+    Serial.println("ERR malformed CH15_SET pulse");
+    return true;
+  }
+
+  char *endPointer = NULL;
+  unsigned long pulse = strtoul(pulseText, &endPointer, 10);
+  if (endPointer == pulseText || *endPointer != '\0' ||
+      pulse < CH15_TEST_MIN_PULSE || pulse > CH15_TEST_MAX_PULSE) {
+    Serial.println("ERR CH15 pulse outside conservative 290..320 range");
+    return true;
+  }
+
+  if (!ch15TestEnabled) {
+    Serial.println("ERR send CH15_TEST_ENABLE before CH15_SET");
+    return true;
+  }
+
+  // This is the only CH15 drive call. It runs only after an explicit command.
+  pwm.setPWM(CH15_TEST_CHANNEL, 0, static_cast<uint16_t>(pulse));
+  Serial.print("OK CH15 jaw pulse set to ");
+  Serial.println(pulse);
+  return true;
+}
+#endif
+
 void handlePacket() {
 #if ENABLE_CH0_SERVO_TEST
   if (handleCh0TestCommand(packetBuffer)) {
+    return;
+  }
+#endif
+#if ENABLE_CH15_SERVO_TEST
+  if (handleCh15TestCommand(packetBuffer)) {
     return;
   }
 #endif
@@ -169,11 +253,17 @@ void handlePacket() {
 void setup() {
   Serial.begin(BAUD_RATE);
 
-#if ENABLE_CH0_SERVO_TEST
+#if ENABLE_CH0_SERVO_TEST || ENABLE_CH15_SERVO_TEST
   pwm.begin();
   pwm.setPWMFreq(50);
+#endif
+#if ENABLE_CH0_SERVO_TEST
   releaseCh0Output();  // Ensure CH0 is released at boot, before any command.
   Serial.println("CH0 manual test compiled; output disabled until CH0_SET");
+#endif
+#if ENABLE_CH15_SERVO_TEST
+  releaseCh15Output();  // Ensure CH15 is released at boot, before any command.
+  Serial.println("CH15 jaw test compiled; output disabled until CH15_SET");
 #endif
 
   Serial.println("Step 5 receiver READY; PCA9685 output disabled");

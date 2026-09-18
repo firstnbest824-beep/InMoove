@@ -2,7 +2,7 @@
 
 import pytest
 
-from examples.text_robot_chat import run_cli, run_turn
+from examples.text_robot_chat import run_application, run_cli, run_turn
 from inmoove.face import MockHead, map_expression
 
 
@@ -85,3 +85,158 @@ def test_run_cli_reports_invalid_expression_or_intensity_without_changing_head(
     assert outputs == [f"Face expression error: {error}: {expression!r}" if expression == "surprised" else f"Face expression error: {error}"]
     assert head.get_current_expression() is None
     assert head.get_expression_history() == []
+
+
+def test_default_text_application_does_not_construct_jaw_hardware():
+    chat = FakeJsonChat(
+        {"response": "unused", "expression": "neutral", "intensity": 1}
+    )
+    factory_calls = []
+
+    def failing_jaw_head_factory():
+        factory_calls.append(True)
+        raise AssertionError("default mode must not create jaw hardware")
+
+    run_application(
+        chat,
+        jaw_hardware=False,
+        input_fn=lambda _: "/quit",
+        jaw_head_factory=failing_jaw_head_factory,
+    )
+
+    assert factory_calls == []
+
+
+def test_jaw_hardware_option_enables_once_sends_each_expression_and_stops():
+    chat = FakeJsonChat(
+        {"response": "좋아요!", "expression": "happy", "intensity": 2}
+    )
+    events = []
+
+    class FakeJawHead:
+        def enable(self):
+            events.append("enable")
+
+        def set_expression(self, expression):
+            events.append(("jaw", expression.jaw))
+
+        def stop(self):
+            events.append("stop")
+
+    messages = iter(["좋은 소식이 있어", "/quit"])
+    run_application(
+        chat,
+        jaw_hardware=True,
+        input_fn=lambda _: next(messages),
+        jaw_head_factory=FakeJawHead,
+    )
+
+    assert events == [
+        "enable",
+        ("jaw", map_expression("happy", 2).jaw),
+        "stop",
+    ]
+
+
+def test_invalid_ai_expression_does_not_send_a_jaw_pulse():
+    chat = FakeJsonChat(
+        {"response": "invalid", "expression": "unsupported", "intensity": 2}
+    )
+    events = []
+
+    class FakeJawHead:
+        def enable(self):
+            events.append("enable")
+
+        def set_expression(self, expression):
+            events.append(("pulse", expression.jaw))
+
+        def stop(self):
+            events.append("stop")
+
+    messages = iter(["테스트", "/quit"])
+    run_application(
+        chat,
+        jaw_hardware=True,
+        input_fn=lambda _: next(messages),
+        jaw_head_factory=FakeJawHead,
+    )
+
+    assert events == ["enable", "stop"]
+
+
+def test_jaw_hardware_logs_the_normalized_value_pulse_command_and_response():
+    from inmoove.hardware.jaw_head import JawCommandExchange, JawCommandResult
+
+    chat = FakeJsonChat(
+        {"response": "안녕하세요!", "expression": "neutral", "intensity": 1}
+    )
+    outputs: list[str] = []
+
+    class FakeJawHead:
+        def enable(self):
+            pass
+
+        def set_expression(self, expression):
+            assert expression.jaw == 0.5
+            return JawCommandResult(
+                normalized_jaw=0.5,
+                original_target_pulse=305,
+                amplified_target_pulse=305,
+                exchanges=(
+                    JawCommandExchange(
+                        command="CH15_SET,305",
+                        arduino_response="OK CH15 jaw pulse set to 305",
+                    ),
+                    JawCommandExchange(
+                        command="CH15_SET,305",
+                        arduino_response="OK CH15 jaw pulse set to 305",
+                    ),
+                    JawCommandExchange(
+                        command="CH15_SET,305",
+                        arduino_response="OK CH15 jaw pulse set to 305",
+                    ),
+                ),
+            )
+
+        def stop(self):
+            pass
+
+    messages = iter(["안녕", "/quit"])
+    run_application(
+        chat,
+        jaw_hardware=True,
+        input_fn=lambda _: next(messages),
+        output_fn=outputs.append,
+        jaw_head_factory=FakeJawHead,
+    )
+
+    assert outputs[-10:] == [
+        "Jaw hardware:",
+        "normalized jaw = 0.5",
+        "original target pulse = 305",
+        "amplified target pulse = 305",
+        "PC -> Arduino: CH15_SET,305",
+        "Arduino -> PC: OK CH15 jaw pulse set to 305",
+        "PC -> Arduino: CH15_SET,305",
+        "Arduino -> PC: OK CH15 jaw pulse set to 305",
+        "PC -> Arduino: CH15_SET,305",
+        "Arduino -> PC: OK CH15 jaw pulse set to 305",
+    ]
+
+
+def test_default_text_application_does_not_print_jaw_hardware_logs():
+    chat = FakeJsonChat(
+        {"response": "안녕하세요!", "expression": "neutral", "intensity": 1}
+    )
+    outputs: list[str] = []
+    messages = iter(["안녕", "/quit"])
+
+    run_application(
+        chat,
+        jaw_hardware=False,
+        input_fn=lambda _: next(messages),
+        output_fn=outputs.append,
+    )
+
+    assert not any("Jaw hardware" in output or "CH15" in output for output in outputs)
