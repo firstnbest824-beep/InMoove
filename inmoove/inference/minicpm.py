@@ -7,10 +7,13 @@ from typing import Any
 
 
 _JSON_REPLY_INSTRUCTION = """Return exactly one valid JSON object and nothing else.
-Do not use Markdown, code fences, or explanatory text.
-The JSON object must have these fields:
-{"response": "a natural-language reply", "expression": "emotion label", "intensity": 2}
-The intensity value must be a JSON number, not a string."""
+Do not output Markdown, code fences, labels, explanations, or any text before or after the JSON object.
+Use exactly these three fields and no placeholder values:
+{"response": "안녕하세요. 반가워요!", "expression": "neutral", "intensity": 1}
+The response value must be a natural-language reply to the user.
+The expression value must be exactly one of these JSON strings: "neutral", "happy", "sad".
+Never output placeholder text such as "emotion label" or "expression label".
+The intensity value must be a JSON integer: 1, 2, or 3. Do not use a string or decimal value."""
 
 
 def _import_pipeline() -> Callable[..., Callable[..., object]]:
@@ -90,9 +93,19 @@ def _parse_structured_response(content: str) -> dict[str, Any]:
             + ", ".join(sorted(missing_fields))
         )
 
+    expression = parsed["expression"]
+    if not isinstance(expression, str) or expression not in {"neutral", "happy", "sad"}:
+        raise ValueError(
+            "MiniCPM response expression must be one of: neutral, happy, sad"
+        )
+
     intensity = parsed["intensity"]
-    if isinstance(intensity, bool) or not isinstance(intensity, (int, float)):
-        raise ValueError("MiniCPM response intensity must be a JSON number")
+    if isinstance(intensity, bool) or not isinstance(intensity, int) or intensity not in {
+        1,
+        2,
+        3,
+    }:
+        raise ValueError("MiniCPM response intensity must be an integer from 1 to 3")
 
     return parsed
 

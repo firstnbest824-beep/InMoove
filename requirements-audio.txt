@@ -1,0 +1,5 @@
+# Optional local microphone STT baseline.
+# Install with: python3 -m pip install -r requirements-audio.txt
+numpy>=1.24
+sounddevice>=0.4
+vosk>=0.3.45

@@ -3,6 +3,9 @@
 # 테스트 프레임워크
 pytest>=7.0
 
+# Step 5 실제 Arduino USB serial transport (테스트는 fake connection을 사용)
+pyserial>=3.5
+
 # 코드 스타일 및 정적 분석 도구 (선택사항)
 # pylint>=2.0
 # black>=22.0

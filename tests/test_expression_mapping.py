@@ -3,7 +3,7 @@
 import pytest
 
 import inmoove.face as face
-from inmoove.face import FaceExpression
+from inmoove.face import FaceExpression, MockHead
 
 
 NEUTRAL = (0.5,) * 16
@@ -87,6 +87,29 @@ def test_map_expression_is_deterministic_for_happy_intensity_two():
 
     assert first == second
     assert len(first) == 16
+
+
+@pytest.mark.parametrize(
+    ("expression", "intensity"),
+    [
+        ("happy", 2),
+        ("neutral", 1),
+    ],
+)
+def test_mapped_expression_flows_into_mock_head(expression, intensity):
+    """A Step 3 label reaches MockHead as the same complete 16D expression."""
+    generated = _map(expression, intensity)
+    head = MockHead(verbose=False)
+
+    head.set_expression(generated)
+
+    stored = head.get_current_expression()
+    history = head.get_expression_history()
+    assert stored is not None
+    assert stored.get_all_values() == generated.get_all_values()
+    assert len(stored.get_all_values()) == 16
+    assert len(history) == 1
+    assert history[0]["expression"].get_all_values() == generated.get_all_values()
 
 
 @pytest.mark.parametrize("expression", ["angry", "Happy", ""])

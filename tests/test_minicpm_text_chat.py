@@ -101,6 +101,9 @@ def test_reply_json_returns_parsed_structured_response():
     }
     prompt = calls[0]["text"][0]["content"][0]["text"]
     assert "valid JSON object" in prompt
+    assert '"expression": "neutral"' in prompt
+    assert "emotion label" in prompt
+    assert "expression label" in prompt
     assert "좋은 소식이 있어." in prompt
 
 
@@ -108,11 +111,31 @@ def test_reply_json_returns_parsed_structured_response():
     "model_output, error",
     [
         ("not json", "valid JSON object"),
+        (
+            'Here is the JSON: {"response":"안녕","expression":"neutral","intensity":1}',
+            "valid JSON object",
+        ),
         ("[]", "JSON object"),
         ('{"response":"안녕"}', "missing required fields"),
         (
+            '{"response":"안녕","expression":"emotion label","intensity":2}',
+            "expression must be one of: neutral, happy, sad",
+        ),
+        (
+            '{"response":"안녕","expression":"angry","intensity":2}',
+            "expression must be one of: neutral, happy, sad",
+        ),
+        (
+            '{"response":"안녕","expression":"happy","intensity":0}',
+            "intensity must be an integer from 1 to 3",
+        ),
+        (
+            '{"response":"안녕","expression":"happy","intensity":4}',
+            "intensity must be an integer from 1 to 3",
+        ),
+        (
             '{"response":"안녕","expression":"happy","intensity":"2"}',
-            "intensity must be a JSON number",
+            "intensity must be an integer from 1 to 3",
         ),
     ],
 )
